@@ -14,8 +14,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	dns_feature "v2ray.com/core/features/dns"
-
 	"golang.org/x/net/dns/dnsmessage"
 	"v2ray.com/core/common"
 	"v2ray.com/core/common/net"
@@ -23,6 +21,7 @@ import (
 	"v2ray.com/core/common/session"
 	"v2ray.com/core/common/signal/pubsub"
 	"v2ray.com/core/common/task"
+	dns_feature "v2ray.com/core/features/dns"
 	"v2ray.com/core/features/routing"
 	"v2ray.com/core/transport/internet"
 )
@@ -44,7 +43,6 @@ type DoHNameServer struct {
 
 // NewDoHNameServer creates DOH client object for remote resolving
 func NewDoHNameServer(url *url.URL, dispatcher routing.Dispatcher, clientIP net.IP) (*DoHNameServer, error) {
-
 	newError("DNS: created Remote DOH client for ", url.String()).AtInfo().WriteToLog()
 	s := baseDOHNameServer(url, "DOH", clientIP)
 
@@ -113,7 +111,6 @@ func NewDoHLocalNameServer(url *url.URL, clientIP net.IP) *DoHNameServer {
 }
 
 func baseDOHNameServer(url *url.URL, prefix string, clientIP net.IP) *DoHNameServer {
-
 	s := &DoHNameServer{
 		ips:      make(map[string]record),
 		clientIP: clientIP,
@@ -221,13 +218,11 @@ func (s *DoHNameServer) sendQuery(ctx context.Context, domain string, option IPO
 	if d, ok := ctx.Deadline(); ok {
 		deadline = d
 	} else {
-		deadline = time.Now().Add(time.Second * 8)
+		deadline = time.Now().Add(time.Second * 5)
 	}
 
 	for _, req := range reqs {
-
 		go func(r *dnsRequest) {
-
 			// generate new context for each req, using same context
 			// may cause reqs all aborted if any one encounter an error
 			dnsCtx := context.Background()
@@ -245,7 +240,8 @@ func (s *DoHNameServer) sendQuery(ctx context.Context, domain string, option IPO
 			// forced to use mux for DOH
 			dnsCtx = session.ContextWithMuxPrefered(dnsCtx, true)
 
-			dnsCtx, cancel := context.WithDeadline(dnsCtx, deadline)
+			var cancel context.CancelFunc
+			dnsCtx, cancel = context.WithDeadline(dnsCtx, deadline)
 			defer cancel()
 
 			b, err := dns.PackMessage(r.msg)
@@ -269,7 +265,6 @@ func (s *DoHNameServer) sendQuery(ctx context.Context, domain string, option IPO
 }
 
 func (s *DoHNameServer) dohHTTPSContext(ctx context.Context, b []byte) ([]byte, error) {
-
 	body := bytes.NewBuffer(b)
 	req, err := http.NewRequest("POST", s.dohURL, body)
 	if err != nil {

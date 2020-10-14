@@ -1,6 +1,6 @@
 package main
 
-//go:generate errorgen
+//go:generate go run v2ray.com/core/common/errors/errorgen
 
 import (
 	"flag"
@@ -70,11 +70,9 @@ func getConfigFilePath() (cmdarg.Arg, error) {
 	if dirExists(configDir) {
 		log.Println("Using confdir from arg:", configDir)
 		readConfDir(configDir)
-	} else {
-		if envConfDir := platform.GetConfDirPath(); dirExists(envConfDir) {
-			log.Println("Using confdir from env:", envConfDir)
-			readConfDir(envConfDir)
-		}
+	} else if envConfDir := platform.GetConfDirPath(); dirExists(envConfDir) {
+		log.Println("Using confdir from env:", envConfDir)
+		readConfDir(envConfDir)
 	}
 
 	if len(configFiles) > 0 {
@@ -134,7 +132,6 @@ func printVersion() {
 }
 
 func main() {
-
 	flag.Parse()
 
 	printVersion()

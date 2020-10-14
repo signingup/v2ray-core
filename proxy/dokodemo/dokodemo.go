@@ -2,7 +2,7 @@
 
 package dokodemo
 
-//go:generate errorgen
+//go:generate go run v2ray.com/core/common/errors/errorgen
 
 import (
 	"context"
@@ -156,7 +156,7 @@ func (d *DokodemoDoor) Process(ctx context.Context, network net.Network, conn in
 	if network == net.Network_TCP {
 		writer = buf.NewWriter(conn)
 	} else {
-		//if we are in TPROXY mode, use linux's udp forging functionality
+		// if we are in TPROXY mode, use linux's udp forging functionality
 		if !destinationOverridden {
 			writer = &buf.SequentialWriter{Writer: conn}
 		} else {
