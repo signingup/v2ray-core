@@ -55,7 +55,7 @@ func (s *Server) policy() policy.Session {
 
 // Network implements proxy.Inbound.
 func (*Server) Network() []net.Network {
-	return []net.Network{net.Network_TCP}
+	return []net.Network{net.Network_TCP, net.Network_UNIX}
 }
 
 func isTimeout(err error) bool {
@@ -291,6 +291,7 @@ func (s *Server) handlePlainHTTP(ctx context.Context, request *http.Request, wri
 				response.Close = true
 				result = nil
 			}
+			defer response.Body.Close()
 		} else {
 			newError("failed to read response from ", request.Host).Base(err).AtWarning().WriteToLog(session.ExportIDToError(ctx))
 			response = &http.Response{

@@ -45,12 +45,6 @@ func (c *VLessInboundConfig) Build() (proto.Message, error) {
 			return nil, newError(`VLESS clients: invalid user`).Base(err)
 		}
 
-		switch account.Flow {
-		case "", "xtls-rprx-origin", "xtls-rprx-direct":
-		default:
-			return nil, newError(`VLESS clients: "flow" doesn't support "` + account.Flow + `" in this version`)
-		}
-
 		if account.Encryption != "" {
 			return nil, newError(`VLESS clients: "encryption" should not in inbound settings`)
 		}
@@ -100,7 +94,7 @@ func (c *VLessInboundConfig) Build() (proto.Message, error) {
 				case '@', '/':
 					fb.Type = "unix"
 					if fb.Dest[0] == '@' && len(fb.Dest) > 1 && fb.Dest[1] == '@' && runtime.GOOS == "linux" {
-						fullAddr := make([]byte, len(syscall.RawSockaddrUnix{}.Path)) // may need padding to work in front of haproxy
+						fullAddr := make([]byte, len(syscall.RawSockaddrUnix{}.Path)) // may need padding to work with haproxy
 						copy(fullAddr, fb.Dest[1:])
 						fb.Dest = string(fullAddr)
 					}
@@ -163,12 +157,6 @@ func (c *VLessOutboundConfig) Build() (proto.Message, error) {
 			account := new(vless.Account)
 			if err := json.Unmarshal(rawUser, account); err != nil {
 				return nil, newError(`VLESS users: invalid user`).Base(err)
-			}
-
-			switch account.Flow {
-			case "", "xtls-rprx-origin", "xtls-rprx-origin-udp443", "xtls-rprx-direct", "xtls-rprx-direct-udp443":
-			default:
-				return nil, newError(`VLESS users: "flow" doesn't support "` + account.Flow + `" in this version`)
 			}
 
 			if account.Encryption != "none" {

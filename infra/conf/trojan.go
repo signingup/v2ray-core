@@ -96,11 +96,6 @@ type TrojanServerConfig struct {
 // Build implements Buildable
 func (c *TrojanServerConfig) Build() (proto.Message, error) {
 	config := new(trojan.ServerConfig)
-
-	if len(c.Clients) == 0 {
-		return nil, newError("No trojan user settings.")
-	}
-
 	config.Users = make([]*protocol.User, len(c.Clients))
 	for idx, rawUser := range c.Clients {
 		user := new(protocol.User)
@@ -150,7 +145,7 @@ func (c *TrojanServerConfig) Build() (proto.Message, error) {
 				case '@', '/':
 					fb.Type = "unix"
 					if fb.Dest[0] == '@' && len(fb.Dest) > 1 && fb.Dest[1] == '@' && runtime.GOOS == "linux" {
-						fullAddr := make([]byte, len(syscall.RawSockaddrUnix{}.Path)) // may need padding to work in front of haproxy
+						fullAddr := make([]byte, len(syscall.RawSockaddrUnix{}.Path)) // may need padding to work with haproxy
 						copy(fullAddr, fb.Dest[1:])
 						fb.Dest = string(fullAddr)
 					}

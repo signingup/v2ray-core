@@ -11,7 +11,6 @@ import (
 	"v2ray.com/core/app/proxyman"
 	"v2ray.com/core/app/stats"
 	"v2ray.com/core/common/serial"
-	"v2ray.com/core/transport/internet/xtls"
 )
 
 var (
@@ -156,17 +155,35 @@ type InboundDetourConfig struct {
 func (c *InboundDetourConfig) Build() (*core.InboundHandlerConfig, error) {
 	receiverSettings := &proxyman.ReceiverConfig{}
 
-	if c.PortRange == nil {
-		return nil, newError("port range not specified in InboundDetour.")
-	}
-	receiverSettings.PortRange = c.PortRange.Build()
-
-	if c.ListenOn != nil {
-		if c.ListenOn.Family().IsDomain() {
+	if c.ListenOn == nil {
+		// Listen on anyip, must set PortRange
+		if c.PortRange == nil {
+			return nil, newError("Listen on AnyIP but no Port(s) set in InboundDetour.")
+		}
+		receiverSettings.PortRange = c.PortRange.Build()
+	} else {
+		// Listen on specific IP or Unix Domain Socket
+		receiverSettings.Listen = c.ListenOn.Build()
+		listenDS := c.ListenOn.Family().IsDomain() && (c.ListenOn.Domain()[0] == '/' || c.ListenOn.Domain()[0] == '@')
+		listenIP := c.ListenOn.Family().IsIP() || (c.ListenOn.Family().IsDomain() && c.ListenOn.Domain() == "localhost")
+		switch {
+		case listenIP:
+			// Listen on specific IP, must set PortRange
+			if c.PortRange == nil {
+				return nil, newError("Listen on specific ip without port in InboundDetour.")
+			}
+			// Listen on IP:Port
+			receiverSettings.PortRange = c.PortRange.Build()
+		case listenDS:
+			if c.PortRange != nil {
+				// Listen on Unix Domain Socket, PortRange should be nil
+				receiverSettings.PortRange = nil
+			}
+		default:
 			return nil, newError("unable to listen on domain address: ", c.ListenOn.Domain())
 		}
-		receiverSettings.Listen = c.ListenOn.Build()
 	}
+
 	if c.Allocation != nil {
 		concurrency := -1
 		if c.Allocation.Concurrency != nil && c.Allocation.Strategy == "random" {
@@ -187,9 +204,6 @@ func (c *InboundDetourConfig) Build() (*core.InboundHandlerConfig, error) {
 		ss, err := c.StreamSetting.Build()
 		if err != nil {
 			return nil, err
-		}
-		if ss.SecurityType == serial.GetMessageType(&xtls.Config{}) && !strings.EqualFold(c.Protocol, "vless") {
-			return nil, newError("XTLS only supports VLESS for now.")
 		}
 		receiverSettings.StreamSettings = ss
 	}
@@ -258,9 +272,6 @@ func (c *OutboundDetourConfig) Build() (*core.OutboundHandlerConfig, error) {
 		if err != nil {
 			return nil, err
 		}
-		if ss.SecurityType == serial.GetMessageType(&xtls.Config{}) && !strings.EqualFold(c.Protocol, "vless") {
-			return nil, newError("XTLS only supports VLESS for now.")
-		}
 		senderSettings.StreamSettings = ss
 	}
 
@@ -273,15 +284,7 @@ func (c *OutboundDetourConfig) Build() (*core.OutboundHandlerConfig, error) {
 	}
 
 	if c.MuxSettings != nil {
-		ms := c.MuxSettings.Build()
-		if ms != nil && ms.Enabled {
-			if ss := senderSettings.StreamSettings; ss != nil {
-				if ss.SecurityType == serial.GetMessageType(&xtls.Config{}) {
-					return nil, newError("XTLS doesn't support Mux for now.")
-				}
-			}
-		}
-		senderSettings.MultiplexSettings = ms
+		senderSettings.MultiplexSettings = c.MuxSettings.Build()
 	}
 
 	settings := []byte("{}")
@@ -312,16 +315,32 @@ func (c *StatsConfig) Build() (*stats.Config, error) {
 }
 
 type Config struct {
-	Port            uint16                 `json:"port"` // Port of this Point server. Deprecated.
+	// Port of this Point server.
+	// Deprecated: Port exists for historical compatibility
+	// and should not be used.
+	Port uint16 `json:"port"`
+
+	// Deprecated: InboundConfig exists for historical compatibility
+	// and should not be used.
+	InboundConfig *InboundDetourConfig `json:"inbound"`
+
+	// Deprecated: OutboundConfig exists for historical compatibility
+	// and should not be used.
+	OutboundConfig *OutboundDetourConfig `json:"outbound"`
+
+	// Deprecated: InboundDetours exists for historical compatibility
+	// and should not be used.
+	InboundDetours []InboundDetourConfig `json:"inboundDetour"`
+
+	// Deprecated: OutboundDetours exists for historical compatibility
+	// and should not be used.
+	OutboundDetours []OutboundDetourConfig `json:"outboundDetour"`
+
 	LogConfig       *LogConfig             `json:"log"`
 	RouterConfig    *RouterConfig          `json:"routing"`
 	DNSConfig       *DNSConfig             `json:"dns"`
 	InboundConfigs  []InboundDetourConfig  `json:"inbounds"`
 	OutboundConfigs []OutboundDetourConfig `json:"outbounds"`
-	InboundConfig   *InboundDetourConfig   `json:"inbound"`        // Deprecated.
-	OutboundConfig  *OutboundDetourConfig  `json:"outbound"`       // Deprecated.
-	InboundDetours  []InboundDetourConfig  `json:"inboundDetour"`  // Deprecated.
-	OutboundDetours []OutboundDetourConfig `json:"outboundDetour"` // Deprecated.
 	Transport       *TransportConfig       `json:"transport"`
 	Policy          *PolicyConfig          `json:"policy"`
 	API             *APIConfig             `json:"api"`

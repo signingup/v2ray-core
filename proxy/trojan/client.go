@@ -102,7 +102,7 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 
 		// write some request payload to buffer
 		if err = buf.CopyOnceTimeout(link.Reader, bodyWriter, time.Millisecond*100); err != nil && err != buf.ErrNotTimeoutReader && err != buf.ErrReadTimeout {
-			return newError("failed to write A reqeust payload").Base(err).AtWarning()
+			return newError("failed to write A request payload").Base(err).AtWarning()
 		}
 
 		// Flush; bufferWriter.WriteMultiBufer now is bufferWriter.writer.WriteMultiBuffer

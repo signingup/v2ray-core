@@ -25,7 +25,6 @@ import (
 	"v2ray.com/core/features/routing"
 	"v2ray.com/core/transport/internet"
 	"v2ray.com/core/transport/internet/udp"
-	"v2ray.com/core/transport/internet/xtls"
 )
 
 func init() {
@@ -85,9 +84,19 @@ func NewServer(ctx context.Context, config *ServerConfig) (*Server, error) {
 	return server, nil
 }
 
+// AddUser implements proxy.UserManager.AddUser().
+func (s *Server) AddUser(ctx context.Context, u *protocol.MemoryUser) error {
+	return s.validator.Add(u)
+}
+
+// RemoveUser implements proxy.UserManager.RemoveUser().
+func (s *Server) RemoveUser(ctx context.Context, e string) error {
+	return s.validator.Del(e)
+}
+
 // Network implements proxy.Inbound.Network().
 func (s *Server) Network() []net.Network {
-	return []net.Network{net.Network_TCP}
+	return []net.Network{net.Network_TCP, net.Network_UNIX}
 }
 
 // Process implements proxy.Inbound.Process().
@@ -183,8 +192,6 @@ func (s *Server) Process(ctx context.Context, network net.Network, conn internet
 	if destination.Network == net.Network_UDP { // handle udp request
 		return s.handleUDPPayload(ctx, &PacketReader{Reader: clientReader}, &PacketWriter{Writer: conn}, dispatcher)
 	}
-
-	// handle tcp request
 
 	ctx = log.ContextWithAccessMessage(ctx, &log.AccessMessage{
 		From:   conn.RemoteAddr(),
@@ -286,9 +293,6 @@ func (s *Server) fallback(ctx context.Context, sid errors.ExportOption, err erro
 	if len(apfb) > 1 || apfb[""] == nil {
 		if tlsConn, ok := iConn.(*tls.Conn); ok {
 			alpn = tlsConn.ConnectionState().NegotiatedProtocol
-			newError("realAlpn = " + alpn).AtInfo().WriteToLog(sid)
-		} else if xtlsConn, ok := iConn.(*xtls.Conn); ok {
-			alpn = xtlsConn.ConnectionState().NegotiatedProtocol
 			newError("realAlpn = " + alpn).AtInfo().WriteToLog(sid)
 		}
 		if apfb[alpn] == nil {
